@@ -3,7 +3,7 @@ import requests, time
 
 app = Flask(__name__)
 
-ACCESS_TOKEN = "kkiGFyckd7CaG3zBwHQdeo68HGbM330qgGobEce9Mj8"
+ACCESS_TOKEN = "PC0J7MNgZJuE1wL7wvbU0qVLbnldk79ZUlfbozO9SP0"
 ACCOUNT_ID   = 3729695
 # cTrader Open API v2
 BASE_URL     = "https://api.spotware.com"
