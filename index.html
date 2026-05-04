@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Trading Dashboard · Pepperstone Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root{--bg:#080c10;--surface:#0d1117;--border:#1a2330;--accent:#00e5a0;--warn:#ff4d6d;--text:#e2eaf4;--muted:#5a6a7e;--card:#111820;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.2;pointer-events:none;z-index:0;}
+  header{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:1.2rem 2rem;border-bottom:1px solid var(--border);background:rgba(8,12,16,.9);backdrop-filter:blur(12px);}
+  .logo{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:var(--accent)}
+  .logo span{color:var(--muted);font-weight:400}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .header-right{display:flex;align-items:center;gap:1rem;font-size:.75rem;color:var(--muted)}
+  #clock{color:var(--text);font-size:.8rem}
+  main{position:relative;z-index:1;padding:2rem;display:grid;gap:1.5rem}
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:1.2rem 1.4rem;transition:border-color .2s;}
+  .stat-card:hover{border-color:var(--accent)}
+  .stat-label{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+  .stat-value{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:700;line-height:1}
+  .stat-sub{font-size:.65rem;color:var(--muted);margin-top:.4rem}
+  .pos{color:var(--accent)}.neg{color:var(--warn)}
+  .section-title{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.8rem;display:flex;align-items:center;gap:.6rem;}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.76rem}
+  thead th{text-align:left;padding:.6rem .8rem;color:var(--muted);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border);font-weight:400}
+  tbody tr{border-bottom:1px solid rgba(26,35,48,.6);transition:background .15s}
+  tbody tr:hover{background:rgba(0,229,160,.04)}
+  td{padding:.65rem .8rem;vertical-align:middle}
+  .badge{display:inline-block;padding:.15rem .5rem;border-radius:2px;font-size:.62rem;letter-spacing:.08em;font-weight:700}
+  .buy{background:rgba(0,229,160,.12);color:var(--accent)}.sell{background:rgba(255,77,109,.12);color:var(--warn)}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:1.4rem}
+  .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:3px;font-family:'Space Mono',monospace;font-size:.72rem;cursor:pointer;transition:background .2s,color .2s;letter-spacing:.05em;}
+  .btn:hover{background:var(--accent);color:var(--bg)}
+  .empty{color:var(--muted);font-size:.78rem;padding:1.5rem 0;text-align:center}
+  #loading{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem}
+  .spin{display:inline-block;width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loading p{font-size:.8rem;color:var(--muted);letter-spacing:.12em}
+  #loading.hidden{display:none}
+  .err-box{background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.3);border-radius:4px;padding:1rem;color:var(--warn);font-size:.75rem;line-height:1.7}
+</style>
+</head>
+<body>
+<div id="loading"><div class="spin"></div><p>CONECTANDO CON CTRADER…</p></div>
+<header>
+  <div class="logo">TRADING<span>DESK</span> <span style="font-size:.7rem;margin-left:.5rem">· Pepperstone Demo 3729695</span></div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <span id="clock"></span>
+    <button class="btn" onclick="loadAll()">↻ ACTUALIZAR</button>
+  </div>
+</header>
+<main>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-label">Balance</div><div class="stat-value" id="s-balance">—</div><div class="stat-sub">USD</div></div>
+    <div class="stat-card"><div class="stat-label">Equity</div><div class="stat-value" id="s-equity">—</div><div class="stat-sub">USD</div></div>
+    <div class="stat-card"><div class="stat-label">Margin usado</div><div class="stat-value" id="s-margin">—</div><div class="stat-sub">USD</div></div>
+    <div class="stat-card"><div class="stat-label">Libre</div><div class="stat-value" id="s-free">—</div><div class="stat-sub">USD</div></div>
+    <div class="stat-card"><div class="stat-label">P&amp;L abierto</div><div class="stat-value" id="s-pnl">—</div><div class="stat-sub">flotante</div></div>
+    <div class="stat-card"><div class="stat-label">Posiciones</div><div class="stat-value" id="s-pos">—</div><div class="stat-sub">abiertas</div></div>
+  </div>
+  <div id="cors-warning" class="err-box" style="display:none">
+    ⚠️ <b>CORS bloqueado:</b> La API de Spotware no permite llamadas directas desde el navegador.<br>
+    Solución aplicada automáticamente: las llamadas se hacen desde el servidor Python.<br>
+    Si ves este mensaje, recarga la página. Si persiste, el token puede haber expirado.
+  </div>
+  <div class="panel">
+    <div class="section-title">Posiciones abiertas</div>
+    <div class="table-wrap"><table><thead><tr><th>Símbolo</th><th>Tipo</th><th>Volumen</th><th>Precio entrada</th><th>P&amp;L</th><th>Swap</th></tr></thead><tbody id="pos-body"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="section-title">Órdenes pendientes</div>
+    <div class="table-wrap"><table><thead><tr><th>Símbolo</th><th>Tipo</th><th>Volumen</th><th>Precio límite</th><th>Expira</th></tr></thead><tbody id="ord-body"><tr><td colspan="5" class="empty">Cargando…</td></tr></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="section-title">Historial — últimos 30 días</div>
+    <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Símbolo</th><th>Tipo</th><th>Volumen</th><th>Entrada</th><th>Cierre</th><th>P&amp;L</th></tr></thead><tbody id="deal-body"><tr><td colspan="7" class="empty">Cargando…</td></tr></tbody></table></div>
+  </div>
+</main>
+<script>
+// Llama al servidor Flask (que hace proxy a Spotware)
+const fmt=(v,d=2)=>v==null?'—':Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pnlClass=v=>v>0?'pos':v<0?'neg':'';
+
+function updateClock(){document.getElementById('clock').textContent=new Date().toUTCString().slice(17,25)+' UTC';}
+setInterval(updateClock,1000);updateClock();
+
+async function apiFetch(path){
+  const r=await fetch(path);
+  const j=await r.json();
+  if(!j.ok)throw new Error(j.error||'API error');
+  return j.data;
+}
+
+async function loadAccount(){
+  try{
+    const d=await apiFetch('/api/account');
+    const bal=d.balance!=null?d.balance/100:null;
+    const eq=d.equity!=null?d.equity/100:null;
+    const mg=d.usedMargin!=null?d.usedMargin/100:null;
+    const fr=d.freeMargin!=null?d.freeMargin/100:null;
+    document.getElementById('s-balance').textContent=fmt(bal);
+    document.getElementById('s-equity').textContent=fmt(eq);
+    document.getElementById('s-margin').textContent=fmt(mg);
+    document.getElementById('s-free').textContent=fmt(fr);
+  }catch(e){
+    ['s-balance','s-equity','s-margin','s-free'].forEach(id=>document.getElementById(id).textContent='ERR');
+    console.error('account',e);
+  }
+}
+
+async function loadPositions(){
+  const tbody=document.getElementById('pos-body');
+  try{
+    const d=await apiFetch('/api/positions');
+    const list=d.position||d.positions||[];
+    if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">Sin posiciones abiertas</td></tr>';document.getElementById('s-pos').textContent='0';document.getElementById('s-pnl').textContent='0.00';return;}
+    let total=0;
+    tbody.innerHTML=list.map(p=>{
+      const pnl=p.unrealizedPnl!=null?p.unrealizedPnl/100:null;
+      if(pnl)total+=pnl;
+      const side=(p.tradeData?.tradeSide||p.side||'—').toUpperCase();
+      const sym=p.tradeData?.symbolName||p.symbolName||p.symbolId||'—';
+      const vol=p.tradeData?.volume!=null?p.tradeData.volume/100:p.volume!=null?p.volume/100:null;
+      const ep=p.price!=null?(p.price/100000).toFixed(5):'—';
+      return `<tr><td><b>${sym}</b></td><td><span class="badge ${side==='BUY'?'buy':'sell'}">${side}</span></td><td>${fmt(vol,2)}</td><td>${ep}</td><td class="${pnlClass(pnl)}">${fmt(pnl)}</td><td>${p.swap!=null?fmt(p.swap/100):'—'}</td></tr>`;
+    }).join('');
+    document.getElementById('s-pos').textContent=list.length;
+    const el=document.getElementById('s-pnl');el.textContent=fmt(total);el.className='stat-value '+pnlClass(total);
+  }catch(e){tbody.innerHTML=`<tr><td colspan="6" class="empty">Error: ${e.message}</td></tr>`;}
+}
+
+async function loadOrders(){
+  const tbody=document.getElementById('ord-body');
+  try{
+    const d=await apiFetch('/api/orders');
+    const list=d.order||d.orders||[];
+    if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty">Sin órdenes pendientes</td></tr>';return;}
+    tbody.innerHTML=list.map(o=>{
+      const sym=o.tradeData?.symbolName||o.symbolName||'—';
+      const side=(o.tradeData?.tradeSide||o.side||'—').toUpperCase();
+      const vol=o.tradeData?.volume!=null?fmt(o.tradeData.volume/100,2):'—';
+      const lp=o.limitPrice!=null?(o.limitPrice/100000).toFixed(5):'—';
+      const exp=o.expirationTimestamp?new Date(o.expirationTimestamp).toLocaleString('es-SV'):'GTC';
+      return `<tr><td><b>${sym}</b></td><td><span class="badge ${side==='BUY'?'buy':'sell'}">${side}</span></td><td>${vol}</td><td>${lp}</td><td>${exp}</td></tr>`;
+    }).join('');
+  }catch(e){tbody.innerHTML=`<tr><td colspan="5" class="empty">Error: ${e.message}</td></tr>`;}
+}
+
+async function loadDeals(){
+  const tbody=document.getElementById('deal-body');
+  try{
+    const d=await apiFetch('/api/deals');
+    const list=d.deal||d.deals||[];
+    if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="empty">Sin historial en los últimos 30 días</td></tr>';return;}
+    list.sort((a,b)=>(b.executionTimestamp||0)-(a.executionTimestamp||0));
+    tbody.innerHTML=list.slice(0,100).map(dl=>{
+      const date=dl.executionTimestamp?new Date(dl.executionTimestamp).toLocaleString('es-SV'):'—';
+      const sym=dl.symbolName||dl.symbolId||'—';
+      const side=(dl.tradeSide||'—').toUpperCase();
+      const vol=dl.volume!=null?fmt(dl.volume/100,2):'—';
+      const ep=dl.executionPrice!=null?(dl.executionPrice/100000).toFixed(5):'—';
+      const cp=dl.closePositionDetail?.closingPrice!=null?(dl.closePositionDetail.closingPrice/100000).toFixed(5):'—';
+      const pnl=dl.closePositionDetail?.grossProfit!=null?dl.closePositionDetail.grossProfit/100:null;
+      return `<tr><td style="font-size:.68rem;color:var(--muted)">${date}</td><td><b>${sym}</b></td><td><span class="badge ${side==='BUY'?'buy':'sell'}">${side}</span></td><td>${vol}</td><td>${ep}</td><td>${cp}</td><td class="${pnlClass(pnl)}">${pnl!=null?fmt(pnl):'—'}</td></tr>`;
+    }).join('');
+  }catch(e){tbody.innerHTML=`<tr><td colspan="7" class="empty">Error: ${e.message}</td></tr>`;}
+}
+
+async function loadAll(){await Promise.all([loadAccount(),loadPositions(),loadOrders(),loadDeals()]);}
+window.addEventListener('DOMContentLoaded',async()=>{
+  await loadAll();
+  document.getElementById('loading').classList.add('hidden');
+  setInterval(loadAll,30000);
+});
+</script>
+</body>
+</html>
